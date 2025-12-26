@@ -246,3 +246,5 @@ local lib = { } do
         return setmetatable({ }, { __index = webhook }):begin(url)
     end
 end
+
+return lib
