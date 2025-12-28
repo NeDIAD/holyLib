@@ -238,7 +238,218 @@ local webhook = { } do
     end
 end
 
+-- ok now super mega fly
+local fly = { } do
+    fly.connection = nil
+    fly.velocity = nil
+    fly.speed = 16
+
+    ---@return boolean
+    function fly.enable()
+        if fly.connection then return false end
+        local self = game:GetService('Players').LocalPlayer
+        local char = self.Character
+        local humanoid = char and char:FindFirstChild('Humanoid')
+        
+        local head = char and char:FindFirstChild('Head')
+        local root = char and char:FindFirstChild('HumanoidRootPart')
+        if not char then return false end
+
+        humanoid.PlatformStand = true
+        head.Anchored = true
+
+        local velocity = Instance.new('BodyVelocity')
+        velocity.Velocity = Vector3.new(0, 0, 0)
+        velocity.MaxForce = Vector3.new(0, 0, 0)
+        velocity.Parent = root
+
+        fly.velocity = velocity
+
+        fly.connection = game:GetService('RunService').Heartbeat:Connect(function(delta)
+            local camera = workspace.CurrentCamera
+
+            local moveDirection = humanoid.MoveDirection * (fly.speed * delta)
+            local cameraPos = camera.CFrame.Position
+            local headPosition = head.CFrame.Position
+
+            local objectSpaceVelocity = CFrame.new(cameraPos, Vector3.new(headPosition.X, cameraPos.Y, headPosition.Z)):VectorToObjectSpace(moveDirection)
+            head.CFrame = CFrame.new(headPosition) * (camera.CFrame - cameraPos) * CFrame.new(objectSpaceVelocity)
+        end)
+
+        return true
+    end
+
+    ---@return boolean
+    function fly.reset()
+        if not fly.hook then return false end
+
+        fly.connection:Disconnect()
+        fly.connection = nil
+
+        local self = game:GetService('Players').LocalPlayer
+        local char = self.Character
+        local humanoid = char and char:FindFirstChild('Humanoid')
+        local head = char and char:FindFirstChild('Head')
+        local root = char and char:FindFirstChild('HumanoidRootPart')
+
+        humanoid.PlatformStand = false
+        head.Anchored = false
+
+        if fly.velocity then
+            fly.velocity:Destroy()
+            fly.velocity = nil
+        end
+
+        if root then
+            root.Velocity = Vector3.new(0, 0, 0)
+            root.RotVelocity = Vector3.new(0, 0, 0)
+            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        end
+
+        for _, part in char:GetDescendants() do
+            if part:IsA('BasePart') then
+                part.Velocity = Vector3.new(0, 0, 0)
+                part.RotVelocity = Vector3.new(0, 0, 0)
+                if part.AssemblyLinearVelocity then
+                    part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                end
+                if part.AssemblyAngularVelocity then
+                    part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                end
+            end
+        end
+
+        return true
+    end
+end
+
+-- nowclip
+local noclip = { } do
+    noclip.hook = nil
+    noclip.collisions = {}
+
+    ---@return boolean
+    function noclip.enable()
+        if noclip.hook then return false end
+        
+        local self = game:GetService('Players').LocalPlayer
+        local char = self.Character
+        if not char then return false end
+
+        for _, part in char:GetDescendants() do
+            if part:IsA('BasePart') then
+                noclip.collisions[part] = part.CanCollide
+            end
+        end
+
+        noclip.hook = game:GetService('RunService').Stepped:Connect(function()
+            local char = self.Character
+            if not char then return end
+
+            for _, part in char:GetDescendants() do
+                if part:IsA('BasePart') then
+                    part.CanCollide = false
+                end
+            end
+        end)
+
+        return true
+    end
+
+    ---@return boolean
+    function noclip.reset()
+        if not noclip.hook then return false end
+
+        noclip.hook:Disconnect()
+        noclip.hook = nil
+
+        local self = game:GetService('Players').LocalPlayer
+        local char = self.Character
+        if not char then return false end
+
+        for _, part in char:GetDescendants() do
+            if part:IsA('BasePart') then
+                if noclip.collisions[part] ~= nil then
+                    part.CanCollide = noclip.collisions[part]
+                else
+                    if part.Name == 'HumanoidRootPart' then
+                        part.CanCollide = false
+                    else
+                        part.CanCollide = true
+                    end
+                end
+            end
+        end
+
+        noclip.collisions = {}
+
+        return true
+    end
+
+    noclip.onCharacter = game:GetService('Players').LocalPlayer.CharacterAdded:Connect(function(char)
+        if noclip.hook then
+            task.wait(0.1)
+            noclip.collisions = {}
+            for _, part in char:GetDescendants() do
+                if part:IsA('BasePart') then
+                    noclip.collisions[part] = part.CanCollide
+                end
+            end
+        end
+    end)
+end
+
+-- server hop
+local serverhop = { } do
+    ---@param toLowPop boolean Teleport to less players.
+    ---@return boolean, string?
+    function serverhop.teleport(toLowPop)
+        local ok, err = pcall(function()
+            local servers = {}
+
+            local req = game:HttpGet('https://games.roblox.com/v1/games/' .. game.PlaceId .. '/servers/Public?sortOrder=' .. (toLowPop and 'Asc' or 'Desc') .. '&limit=100&excludeFullGames=true')
+            local body = game:GetService('HttpService'):JSONDecode(req)
+
+            if body and body.data then
+                for _, v in next, body.data do
+                    if type(v) == 'table' and tonumber(v.playing) and tonumber(v.maxPlayers) then
+                        if v.playing < v.maxPlayers and v.id ~= game.JobId then
+                            table.insert(servers, { id = v.id, playing = v.playing, maxPlayers = v.maxPlayers, ping = v.ping or 0 })
+                        end
+                    end
+                end
+            end
+
+            if #servers > 0 then
+                table.sort(servers, function(a, b)
+                    if toLowPop then
+                        return a.playing < b.playing
+                    else
+                        return a.playing > b.playing
+                    end
+                end)
+                
+                local pool = {}
+                for i = 1, math.min(10, #servers) do table.insert(pool, servers[i]) end
+                
+                local server = pool[math.random(#pool)]
+                game:GetService('TeleportService'):TeleportToPlaceInstance(game.PlaceId, server.id, game:GetService('Players').LocalPlayer) -- Is this async?
+                return string.format('Teleporting to server (%d/%d players)...', server.playing, server.maxPlayers)
+            else
+                return 'No available servers found'
+            end
+        end)
+
+        return ok, err
+    end
+end
+
 local lib = { } do
+    lib.serverhop = serverhop
+    lib.noclip = noclip
+    lib.fly = fly
+
     -- Create new webhook object.
     ---@param url string https://discord ...
     ---@return Webhook
