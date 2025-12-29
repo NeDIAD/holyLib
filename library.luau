@@ -281,7 +281,7 @@ local fly = { } do
 
     ---@return boolean
     function fly.reset()
-        if not fly.hook then return false end
+        if not fly.connection then return false end
 
         fly.connection:Disconnect()
         fly.connection = nil
@@ -326,12 +326,12 @@ end
 
 -- nowclip
 local noclip = { } do
-    noclip.hook = nil
+    noclip.connection = nil
     noclip.collisions = {}
 
     ---@return boolean
     function noclip.enable()
-        if noclip.hook then return false end
+        if noclip.connection then return false end
         
         local self = game:GetService('Players').LocalPlayer
         local char = self.Character
@@ -343,7 +343,7 @@ local noclip = { } do
             end
         end
 
-        noclip.hook = game:GetService('RunService').Stepped:Connect(function()
+        noclip.connection = game:GetService('RunService').Stepped:Connect(function()
             local char = self.Character
             if not char then return end
 
@@ -359,10 +359,10 @@ local noclip = { } do
 
     ---@return boolean
     function noclip.reset()
-        if not noclip.hook then return false end
+        if not noclip.connection then return false end
 
-        noclip.hook:Disconnect()
-        noclip.hook = nil
+        noclip.connection:Disconnect()
+        noclip.connection = nil
 
         local self = game:GetService('Players').LocalPlayer
         local char = self.Character
@@ -388,7 +388,7 @@ local noclip = { } do
     end
 
     noclip.onCharacter = game:GetService('Players').LocalPlayer.CharacterAdded:Connect(function(char)
-        if noclip.hook then
+        if noclip.connection then
             task.wait(0.1)
             noclip.collisions = {}
             for _, part in char:GetDescendants() do
