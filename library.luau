@@ -456,6 +456,92 @@ local lib = { } do
     function lib.createWebhook(url)
         return setmetatable({ }, { __index = webhook }):begin(url)
     end
+
+    ---@class pretty_table.opts
+    ---@field maxDepth number? max depth
+    ---@field indent number? indent
+
+    ---@param tbl table | any
+    ---@param opts pretty_table.opts?s
+    ---@return string
+    function lib.prettyTable(tbl, opts)
+        opts = type(opts) == 'table' and opts or {}
+        local maxDepth = type(opts.maxDepth) == 'number' and opts.maxDepth or math.huge
+        local startIndent = type(opts.indent) == 'number' and opts.indent or 0
+
+        local out = {}
+        local visiting = {}
+
+        local function indent(level)
+            return string.rep('\t', level)
+        end
+
+        local function prettyValue(v)
+            if type(v) == 'string' then
+                return string.format('%q', v)
+            end
+            return tostring(v)
+        end
+
+        local function isEmptyTable(t)
+            return next(t) == nil
+        end
+
+        local function tableAddr(t)
+            return tostring(t)
+        end
+
+        local function dump(t, depth)
+            local tp = type(t)
+            if tp ~= 'table' then
+                table.insert(out, prettyValue(t))
+                return
+            end
+
+            local addr = tableAddr(t)
+
+            if visiting[t] then
+                table.insert(out, '<recursive ' .. addr .. '>')
+                return
+            end
+
+            if depth >= maxDepth then
+                table.insert(out, '{ ... } -- ' .. addr)
+                return
+            end
+
+            if isEmptyTable(t) then
+                table.insert(out, '{ } -- ' .. addr)
+                return
+            end
+
+            visiting[t] = true
+
+            table.insert(out, '{ -- ' .. addr .. '\n')
+
+            local k, v = next(t, nil)
+            while k ~= nil do
+                table.insert(out, indent(depth + 1))
+                table.insert(out, '[' .. prettyValue(k) .. '] = ')
+
+                if type(v) == 'table' then
+                    dump(v, depth + 1)
+                else
+                    table.insert(out, prettyValue(v))
+                end
+
+                table.insert(out, ',\n')
+                k, v = next(t, k)
+            end
+
+            table.insert(out, indent(depth) .. '}')
+            visiting[t] = nil
+        end
+
+        dump(tbl, startIndent)
+        return table.concat(out)
+    end
+
 end
 
 return lib
