@@ -238,6 +238,59 @@ local webhook = { } do
     end
 end
 
+-- idk
+local hooks = { stack = {} } do
+    ---@class Hook
+    ---@field fn function
+    ---@field args any[]
+    local hook = {} do
+        hook.__index = hook
+
+        function hook:begin(fn, ...)
+            self.begin = nil
+            self.args = { ... }
+            self.fn = fn
+
+            table.insert(hooks.stack, self)
+
+            return self
+        end
+
+        function hook:unhook(cleanup)
+            if self.fn and self.args then
+                if cleanup then
+                    local index = table.find(hooks.stack, self)
+                    if index then table.remove(hooks.stack, index) end
+                end
+
+                return pcall(self.fn, table.unpack(self.args))
+            end
+
+            return false
+        end
+    end
+
+    function hooks.unhook()
+        for _, self in ipairs(hooks.stack) do
+            self:unhook(false)
+        end
+
+        hooks.stack = {}
+    end
+
+    function hooks.new(fn, ...)
+        if type(fn) ~= 'function' then return false end
+        return setmetatable({ }, { __index = hook }):begin(fn, ...)
+    end
+
+    function hooks.connection(connection)
+        if typeof(connection) ~= 'Instance' or not connection:IsA('RBXScriptConnection') then return false end
+        return hooks.new(connection.Disconnect, connection)
+    end
+
+    hooks.hook = hook
+end
+
 -- ok now super mega fly
 local fly = { } do
     fly.connection = nil
@@ -448,8 +501,9 @@ end
 local lib = { } do
     lib.serverhop = serverhop
     lib.noclip = noclip
+    lib.hooks = hooks
     lib.fly = fly
-
+    
     -- Create new webhook object.
     ---@param url string https://discord ...
     ---@return Webhook
@@ -541,7 +595,6 @@ local lib = { } do
         dump(tbl, startIndent)
         return table.concat(out)
     end
-
 end
 
 return lib
