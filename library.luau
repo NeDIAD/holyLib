@@ -305,7 +305,7 @@ local hooks = { stack = {} } do
     end
 
     function hooks.connection(connection)
-        if typeof(connection) ~= 'Instance' or not connection:IsA('RBXScriptConnection') then return false end
+        if typeof(connection) ~= 'RBXScriptConnection' then return false end
         return hooks.new(connection.Disconnect, connection)
     end
 
