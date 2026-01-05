@@ -238,6 +238,27 @@ local webhook = { } do
     end
 end
 
+local utils = {} do
+    function utils.generateString(len)
+        local str = ''
+
+        -- 65 - 90 -> english upper
+        -- 97 - 122 -> english lower
+
+        for _ = 1, len do
+            if math.random() > .5 then
+                str = str .. math.random(9)
+            else
+                local char = string.char(97, 122)
+                if math.random() > .5 then char = char:upper() end
+                str = str .. char
+            end
+        end
+
+        return str
+    end
+end
+
 -- idk
 local hooks = { stack = {} } do
     ---@class Hook
@@ -289,6 +310,49 @@ local hooks = { stack = {} } do
     end
 
     hooks.hook = hook
+end
+
+-- logging malware
+local logger = { } do
+    logger.printFn = print
+    logger.isAllowed = false
+    logger.useFile = ''
+
+    ---@param ... any[]
+    ---@return string
+    function logger.parse(...)
+        local args, str = { ... }, ''
+
+        for _, arg in args do
+            if type(arg) ~= 'string' then
+                str = str .. string.format(' %s(%s)', tostring(arg), typeof(arg))
+            else
+                str = str .. ' ' .. arg
+            end
+        end
+
+        return str
+    end
+
+    function logger.write(...)
+        if not logger.isAllowed then return false end
+        local str = logger.parse(...)
+
+        if #logger.useFile >= 1 then
+            appendfile(logger.useFile, str)
+        end
+
+        if logger.printFn then
+            logger.printFn(str)
+        end
+
+        return true
+    end
+
+    function logger.print(...) return logger.write('[ INFO ]: ', ...) end
+    function logger.warn(...) return logger.write('[ WARN ]: ', ...) end
+    function logger.error(...) return logger.write('[ FAIL ]: ', ...) end
+    function logger.success(...) return logger.write('[  OK  ]: ', ...) end
 end
 
 -- ok now super mega fly
