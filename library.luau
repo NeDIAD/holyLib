@@ -564,10 +564,12 @@ end
 
 local lib = { } do
     lib.serverhop = serverhop
+    lib.logger = logger
     lib.noclip = noclip
+    lib.utils = utils
     lib.hooks = hooks
     lib.fly = fly
-    
+
     -- Create new webhook object.
     ---@param url string https://discord ...
     ---@return Webhook
