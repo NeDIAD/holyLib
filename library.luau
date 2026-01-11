@@ -531,8 +531,11 @@ local serverhop = { } do
             if body and body.data then
                 for _, v in next, body.data do
                     if type(v) == 'table' and tonumber(v.playing) and tonumber(v.maxPlayers) then
+                        local slots = v.maxPlayers - v.playing
                         if v.playing < v.maxPlayers and v.id ~= game.JobId then
-                            table.insert(servers, { id = v.id, playing = v.playing, maxPlayers = v.maxPlayers, ping = v.ping or 0 })
+                            if toLowPop or slots <= 4 then
+                                table.insert(servers, { id = v.id, playing = v.playing, maxPlayers = v.maxPlayers, ping = v.ping or 0, slots = slots })
+                            end
                         end
                     end
                 end
@@ -543,10 +546,10 @@ local serverhop = { } do
                     if toLowPop then
                         return a.playing < b.playing
                     else
-                        return a.playing > b.playing
+                        return a.slots > b.slots
                     end
                 end)
-                
+
                 local pool = {}
                 for i = 1, math.min(10, #servers) do table.insert(pool, servers[i]) end
                 
